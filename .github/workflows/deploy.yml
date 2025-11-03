@@ -3,7 +3,7 @@ name: Deploy Next.js to EC2
 on:
   push:
     branches:
-      - main   # change if your branch is different
+      - main   # trigger deployment when main branch is pushed
 
 jobs:
   deploy:
@@ -16,17 +16,24 @@ jobs:
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_HOST }}
-          REMOTE_HOST: ${{ secrets.HOST_DNS }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ secrets.HOST_DNS }}          # ✅ your EC2 public DNS or IP (example: ec2-50-17-5-24.compute-1.amazonaws.com)
+          username: ${{ secrets.USERNAME }}       # ✅ usually 'ubuntu'
+          key: ${{ secrets.EC2_SSH_KEY }}         # ✅ contents of your private SSH key (not .pub)
+          port: 22
           script: |
+            echo "🚀 Starting deployment on EC2..."
             cd /var/www/html/nextjs/nextjs-weatherapp
+            echo "📦 Pulling latest code..."
             git fetch --all
             git reset --hard origin/main
+            echo "⚙️ Installing dependencies..."
             export PATH="/home/ubuntu/.nvm/versions/node/v20.19.1/bin:$PATH"
             npm install
-            command -v pm2 >/dev/null 2>&1 || npm install -g pm2
+            echo "🧱 Building project..."
             npm run build
+            echo "🚀 Starting or restarting PM2 app..."
+            command -v pm2 >/dev/null 2>&1 || npm install -g pm2
             pm2 restart weather-app || pm2 start npm --name "weather-app" -- run start
             pm2 save
+            echo "✅ Deployment completed successfully!"
+
